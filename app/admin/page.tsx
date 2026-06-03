@@ -105,7 +105,7 @@ export default function AdminPage() {
                 Bem-vindo, {currentUser.name}
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Button asChild>
                 <Link href="/admin/escanear">Escanear</Link>
               </Button>

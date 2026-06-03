@@ -135,7 +135,7 @@ export default function AdminUsuariosPage() {
                 {users.map((user) => (
                   <div
                     key={user.id}
-                    className="flex items-center gap-4 p-4 hover:bg-secondary/30 transition-colors"
+                    className="flex flex-wrap items-center gap-4 p-4 hover:bg-secondary/30 transition-colors"
                   >
                     <Avatar className="h-10 w-10">
                       <AvatarFallback className="bg-primary/10 text-primary">

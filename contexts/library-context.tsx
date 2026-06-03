@@ -80,6 +80,7 @@ interface LibraryContextType {
   addCategory: (name: string) => Promise<{ ok: boolean; error?: string }>;
   updateCategory: (id: string, name: string) => Promise<{ ok: boolean; error?: string }>;
   deleteCategory: (id: string) => Promise<boolean>;
+  rateBook: (bookId: string, rating: number) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const LibraryContext = createContext<LibraryContextType | undefined>(undefined);
@@ -434,6 +435,42 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const rateBook = useCallback(
+    async (
+      bookId: string,
+      rating: number
+    ): Promise<{ ok: boolean; error?: string }> => {
+      try {
+        await api(`/api/books/${bookId}/rate`, {
+          method: "POST",
+          body: JSON.stringify({ rating }),
+        });
+        setBooks((prev) =>
+          prev.map((b) => (b.id === bookId ? { ...b, rating } : b))
+        );
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : "Erro." };
+      }
+    },
+    []
+  );
+
+  // Recarrega os dados quando a aba volta ao foco — assim ações feitas em outro
+  // lugar (ex.: o admin confirmando retirada/devolução) aparecem sem recarregar.
+  useEffect(() => {
+    const onFocus = () => {
+      loadBooks();
+      if (currentUser) loadLoans();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [currentUser, loadBooks, loadLoans]);
+
   return (
     <LibraryContext.Provider
       value={{
@@ -463,6 +500,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         addCategory,
         updateCategory,
         deleteCategory,
+        rateBook,
       }}
     >
       {children}

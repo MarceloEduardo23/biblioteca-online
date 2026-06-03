@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { Star, Clock, BookOpen, X } from "lucide-react";
+import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
 import type { Book, LoanWithDetails } from "@/lib/types";
 import { useLibrary } from "@/contexts/library-context";
@@ -22,7 +23,7 @@ interface BookModalProps {
 }
 
 export function BookModal({ book, open, onClose }: BookModalProps) {
-  const { currentUser, createLoan, loans } = useLibrary();
+  const { currentUser, createLoan, loans, rateBook } = useLibrary();
   const [loanCreated, setLoanCreated] = useState<LoanWithDetails | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -40,6 +41,13 @@ export function BookModal({ book, open, onClose }: BookModalProps) {
   const handleClose = () => {
     setLoanCreated(null);
     onClose();
+  };
+
+  const handleRate = async (n: number) => {
+    const res = await rateBook(book.id, n);
+    toast[res.ok ? "success" : "error"](
+      res.ok ? "Avaliação registrada!" : res.error || "Erro ao avaliar."
+    );
   };
 
   const myActiveLoans = loans.filter(
@@ -64,13 +72,13 @@ export function BookModal({ book, open, onClose }: BookModalProps) {
           <LoanConfirmation loan={loanCreated} onClose={handleClose} />
         ) : (
           <div className="flex flex-col md:flex-row gap-6">
-            <div className="relative w-full md:w-48 aspect-[2/3] flex-shrink-0 rounded-lg overflow-hidden">
+            <div className="relative w-36 mx-auto md:mx-0 md:w-48 aspect-[2/3] flex-shrink-0 rounded-lg overflow-hidden">
               <Image
                 src={book.cover}
                 alt={book.title}
                 fill
                 className="object-cover"
-                sizes="(max-width: 768px) 100vw, 192px"
+                sizes="(max-width: 768px) 144px, 192px"
               />
             </div>
 
@@ -95,11 +103,36 @@ export function BookModal({ book, open, onClose }: BookModalProps) {
                 <span className="text-muted-foreground">{book.genre}</span>
               </div>
 
+              {currentUser && (
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground mr-1">
+                    Sua avaliação:
+                  </span>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => handleRate(n)}
+                      aria-label={`Avaliar com ${n}`}
+                      className="p-0.5"
+                    >
+                      <Star
+                        className={`h-5 w-5 ${
+                          n <= (book.rating || 0)
+                            ? "fill-amber-400 text-amber-400"
+                            : "text-muted-foreground"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {book.description}
               </p>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center gap-2">
                   <BookOpen className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">ISBN: {book.isbn}</span>

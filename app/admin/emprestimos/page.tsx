@@ -130,7 +130,7 @@ export default function AdminEmprestimosPage() {
                   {filteredLoans.map((loan) => (
                     <div
                       key={loan.id}
-                      className="flex items-center gap-4 p-4 hover:bg-secondary/30 transition-colors"
+                      className="flex flex-wrap items-center gap-3 p-4 hover:bg-secondary/30 transition-colors"
                     >
                       <div className="relative w-12 h-18 flex-shrink-0 rounded overflow-hidden">
                         <Image
