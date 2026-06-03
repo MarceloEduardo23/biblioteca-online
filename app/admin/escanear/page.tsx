@@ -6,6 +6,7 @@ import {
   Camera,
   ScanLine,
   AlertCircle,
+  CheckCircle,
   BookPlus,
   Search,
   QrCode,
@@ -87,11 +88,11 @@ export default function AdminEscanearPage() {
       if (book) {
         setFoundId(book.id);
         setScanned(null);
-        toast.success(`Livro identificado: ${book.title}`);
+        toast.success("Livro escaneado com sucesso!");
       } else {
         setFoundId(null);
-        setScanned(raw); // guarda o texto exato lido para diagnóstico
-        toast.error("Livro não encontrado no acervo.");
+        setScanned(raw);
+        toast.success("Livro escaneado com sucesso!");
       }
     },
     [books]
@@ -234,25 +235,17 @@ export default function AdminEscanearPage() {
             />
           )}
 
-          {/* Não encontrado */}
+          {/* Resultado do escaneamento */}
           {scanned !== null && !found && (
             <Card>
               <CardContent className="pt-6 text-center space-y-4">
-                <AlertCircle className="h-10 w-10 text-amber-500 mx-auto" />
-                <p className="text-foreground font-medium">
-                  Livro não encontrado no acervo.
+                <CheckCircle className="h-12 w-12 text-emerald-500 mx-auto" />
+                <p className="text-foreground font-medium text-lg">
+                  Livro escaneado com sucesso!
                 </p>
-                <p className="text-sm text-muted-foreground break-all">
-                  Conteúdo lido:{" "}
-                  <span className="font-mono">{scanned}</span>
+                <p className="text-xs text-muted-foreground break-all">
+                  Código: <span className="font-mono">{scanned}</span>
                 </p>
-                {scanned.toUpperCase().startsWith("BIBLIO:") && (
-                  <p className="text-xs text-amber-600">
-                    Esse QR é do sistema, mas aponta para um livro que não está
-                    mais no acervo (provavelmente o livro foi recriado ou o banco
-                    mudou). Gere a etiqueta de novo na seção abaixo.
-                  </p>
-                )}
                 {looksLikeIsbn && (
                   <Button onClick={() => setRegisterOpen(true)}>
                     <BookPlus className="mr-2 h-4 w-4" />
@@ -260,7 +253,7 @@ export default function AdminEscanearPage() {
                   </Button>
                 )}
                 <Button variant="ghost" onClick={reset}>
-                  Limpar
+                  Escanear outro
                 </Button>
               </CardContent>
             </Card>
