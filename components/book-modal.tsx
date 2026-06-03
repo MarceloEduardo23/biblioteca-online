@@ -1,0 +1,191 @@
+"use client";
+
+import Image from "next/image";
+import { Star, Clock, BookOpen, X } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import type { Book, LoanWithDetails } from "@/lib/types";
+import { useLibrary } from "@/contexts/library-context";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { useState } from "react";
+
+interface BookModalProps {
+  book: Book | null;
+  open: boolean;
+  onClose: () => void;
+}
+
+export function BookModal({ book, open, onClose }: BookModalProps) {
+  const { currentUser, createLoan } = useLibrary();
+  const [loanCreated, setLoanCreated] = useState<LoanWithDetails | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  if (!book) return null;
+
+  const handleLoan = async () => {
+    setLoading(true);
+    const loan = await createLoan(book.id);
+    setLoading(false);
+    if (loan) {
+      setLoanCreated(loan);
+    }
+  };
+
+  const handleClose = () => {
+    setLoanCreated(null);
+    onClose();
+  };
+
+  const canBorrow = currentUser && book.availableCopies > 0;
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card">
+        <DialogHeader>
+          <DialogTitle className="sr-only">{book.title}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Detalhes do livro {book.title} de {book.author}
+          </DialogDescription>
+        </DialogHeader>
+
+        {loanCreated ? (
+          <LoanConfirmation loan={loanCreated} onClose={handleClose} />
+        ) : (
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="relative w-full md:w-48 aspect-[2/3] flex-shrink-0 rounded-lg overflow-hidden">
+              <Image
+                src={book.cover}
+                alt={book.title}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 192px"
+              />
+            </div>
+
+            <div className="flex-1 space-y-4">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">{book.title}</h2>
+                <p className="text-muted-foreground">{book.author}</p>
+              </div>
+
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-1">
+                  <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                  <span className="text-foreground">{book.rating}</span>
+                </div>
+                <span className="text-muted-foreground">|</span>
+                <span className="text-muted-foreground">{book.publishedYear}</span>
+                <span className="text-muted-foreground">|</span>
+                <span className="text-muted-foreground">{book.genre}</span>
+              </div>
+
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {book.description}
+              </p>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">ISBN: {book.isbn}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">14 dias de empréstimo</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <span
+                  className={`text-sm px-3 py-1 rounded-full ${
+                    book.availableCopies > 0
+                      ? "bg-emerald-500/20 text-emerald-500"
+                      : "bg-red-500/20 text-red-500"
+                  }`}
+                >
+                  {book.availableCopies} de {book.totalCopies} disponíveis
+                </span>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                {!currentUser ? (
+                  <p className="text-sm text-muted-foreground">
+                    Faça login para realizar empréstimos
+                  </p>
+                ) : (
+                  <Button
+                    onClick={handleLoan}
+                    disabled={!canBorrow || loading}
+                    className="flex-1"
+                  >
+                    {loading
+                      ? "Processando..."
+                      : book.availableCopies > 0
+                      ? "Realizar Empréstimo"
+                      : "Indisponível"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LoanConfirmation({
+  loan,
+  onClose,
+}: {
+  loan: LoanWithDetails;
+  onClose: () => void;
+}) {
+  const qrData = JSON.stringify({
+    loanId: loan.id,
+    bookTitle: loan.book.title,
+    userName: loan.user.name,
+    dueDate: loan.dueDate.toISOString(),
+  });
+
+  return (
+    <div className="flex flex-col items-center text-center py-6 space-y-6">
+      <div className="bg-emerald-500/20 p-4 rounded-full">
+        <BookOpen className="h-12 w-12 text-emerald-500" />
+      </div>
+
+      <div>
+        <h2 className="text-2xl font-bold text-foreground">Empréstimo Realizado!</h2>
+        <p className="text-muted-foreground mt-1">
+          Apresente o QR Code abaixo na retirada
+        </p>
+      </div>
+
+      <div className="bg-white p-4 rounded-xl">
+        <QRCodeSVG value={qrData} size={200} level="H" />
+      </div>
+
+      <div className="space-y-2 text-sm">
+        <p className="text-foreground">
+          <strong>Livro:</strong> {loan.book.title}
+        </p>
+        <p className="text-foreground">
+          <strong>Leitor:</strong> {loan.user.name}
+        </p>
+        <p className="text-foreground">
+          <strong>Data de Devolução:</strong>{" "}
+          {loan.dueDate.toLocaleDateString("pt-BR")}
+        </p>
+      </div>
+
+      <Button onClick={onClose} className="mt-4">
+        Fechar
+      </Button>
+    </div>
+  );
+}

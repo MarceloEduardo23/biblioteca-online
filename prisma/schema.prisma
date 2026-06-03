@@ -1,0 +1,64 @@
+// Prisma schema — define a estrutura do banco de dados PostgreSQL.
+// Depois de alterar este arquivo, rode: npx prisma migrate dev
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  librarian
+  reader
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String // hash bcrypt — nunca guardamos a senha em texto puro
+  role      Role     @default(reader)
+  createdAt DateTime @default(now())
+
+  loans Loan[]
+}
+
+model Book {
+  id              String   @id @default(cuid())
+  title           String
+  author          String
+  cover           String
+  genre           String
+  isbn            String
+  description     String   @default("")
+  publishedYear   Int
+  totalCopies     Int      @default(1)
+  availableCopies Int      @default(1)
+  rating          Float    @default(0)
+  createdAt       DateTime @default(now())
+
+  loans Loan[]
+}
+
+model Loan {
+  id         String    @id @default(cuid())
+  bookId     String
+  userId     String
+  loanDate   DateTime  @default(now())
+  dueDate    DateTime
+  returnDate DateTime?
+  createdAt  DateTime  @default(now())
+
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
