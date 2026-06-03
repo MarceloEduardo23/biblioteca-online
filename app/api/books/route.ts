@@ -3,10 +3,22 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isStaff } from "@/lib/auth";
 import { serializeBook } from "@/lib/serializers";
 
-// GET /api/books — lista pública de livros.
+// GET /api/books — lista pública de livros (disponibilidade calculada na hora).
 export async function GET() {
-  const books = await prisma.book.findMany({ orderBy: { createdAt: "desc" } });
-  return NextResponse.json({ books: books.map(serializeBook) });
+  const [books, activeLoans] = await Promise.all([
+    prisma.book.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.loan.findMany({ where: { returnDate: null }, select: { bookId: true } }),
+  ]);
+
+  // Conta quantos empréstimos ativos cada livro tem.
+  const active = new Map<string, number>();
+  for (const l of activeLoans) {
+    active.set(l.bookId, (active.get(l.bookId) ?? 0) + 1);
+  }
+
+  return NextResponse.json({
+    books: books.map((b) => serializeBook(b, active.get(b.id) ?? 0)),
+  });
 }
 
 // POST /api/books — cadastra um livro (apenas admin/bibliotecário).

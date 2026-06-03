@@ -281,28 +281,15 @@ function BookForm({
             type="number"
             min="1"
             value={formData.totalCopies}
-            onChange={(e) =>
-              setFormData({ ...formData, totalCopies: parseInt(e.target.value) })
-            }
+            onChange={(e) => {
+              const total = parseInt(e.target.value) || 1;
+              setFormData({ ...formData, totalCopies: total, availableCopies: total });
+            }}
             required
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="available">Cópias Disponíveis</Label>
-          <Input
-            id="available"
-            type="number"
-            min="0"
-            max={formData.totalCopies}
-            value={formData.availableCopies}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                availableCopies: parseInt(e.target.value),
-              })
-            }
-            required
-          />
+          <p className="text-xs text-muted-foreground">
+            A disponibilidade é calculada automaticamente pelos empréstimos ativos.
+          </p>
         </div>
         <div className="col-span-2 space-y-2">
           <Label>Capa</Label>

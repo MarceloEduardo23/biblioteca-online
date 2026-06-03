@@ -16,7 +16,13 @@ export const publicUserSelect = {
   createdAt: true,
 } as const;
 
-export function serializeBook(book: PrismaBook) {
+export function serializeBook(book: PrismaBook, activeLoans?: number) {
+  // A disponibilidade é DERIVADA: total de cópias menos empréstimos ativos.
+  // Quando activeLoans não é informado, cai no valor armazenado (ex.: livro novo).
+  const availableCopies =
+    activeLoans === undefined
+      ? book.availableCopies
+      : Math.max(0, book.totalCopies - activeLoans);
   return {
     id: book.id,
     title: book.title,
@@ -27,7 +33,7 @@ export function serializeBook(book: PrismaBook) {
     description: book.description,
     publishedYear: book.publishedYear,
     totalCopies: book.totalCopies,
-    availableCopies: book.availableCopies,
+    availableCopies,
     rating: book.rating,
   };
 }

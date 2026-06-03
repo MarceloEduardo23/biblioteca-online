@@ -27,7 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { BarcodeScanner } from "@/components/barcode-scanner";
-import { BookQR, QR_PREFIX } from "@/components/book-qr";
+import { BookQR } from "@/components/book-qr";
 import { ImageUpload } from "@/components/image-upload";
 import type { Book } from "@/lib/types";
 
@@ -51,7 +51,7 @@ export default function AdminEscanearPage() {
 
   const [scanning, setScanning] = useState(false);
   const [foundId, setFoundId] = useState<string | null>(null);
-  const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
+  const [scanned, setScanned] = useState<string | null>(null);
   const [manual, setManual] = useState("");
   const [registerOpen, setRegisterOpen] = useState(false);
   const [showLabels, setShowLabels] = useState(false);
@@ -64,39 +64,45 @@ export default function AdminEscanearPage() {
 
   const resolve = useCallback(
     (text: string) => {
-      const t = text.trim();
+      const raw = text.trim();
       let book: Book | undefined;
-      if (t.startsWith(QR_PREFIX)) {
-        const id = t.slice(QR_PREFIX.length);
-        book = books.find((b) => b.id === id);
-      } else {
-        const norm = t.replace(/[^0-9Xx]/g, "");
-        book =
-          norm.length > 0
-            ? books.find(
-                (b) => b.isbn && b.isbn.replace(/[^0-9Xx]/g, "") === norm
-              )
-            : undefined;
+
+      // 1) QR do sistema: "BIBLIO:<id>" (tolerante a maiúsc./minúsc. e espaços)
+      const m = raw.match(/^biblio:\s*(.+)$/i);
+      if (m) book = books.find((b) => b.id === m[1].trim());
+
+      // 2) Talvez o conteúdo do QR seja apenas o id do livro
+      if (!book) book = books.find((b) => b.id === raw);
+
+      // 3) Talvez seja um ISBN / código de barras
+      const digits = raw.replace(/[^0-9Xx]/g, "");
+      if (!book && digits.length > 0) {
+        book = books.find(
+          (b) => b.isbn && b.isbn.replace(/[^0-9Xx]/g, "") === digits
+        );
       }
 
       setScanning(false);
       if (book) {
         setFoundId(book.id);
-        setNotFoundCode(null);
+        setScanned(null);
         toast.success(`Livro identificado: ${book.title}`);
       } else {
         setFoundId(null);
-        // Se for um QR nosso desconhecido, não dá pra cadastrar por ISBN.
-        setNotFoundCode(t.startsWith(QR_PREFIX) ? "" : t.replace(/[^0-9Xx]/g, "") || t);
+        setScanned(raw); // guarda o texto exato lido para diagnóstico
         toast.error("Livro não encontrado no acervo.");
       }
     },
     [books]
   );
 
+  // Quando não acha, decide se o código lido parece um ISBN (10 ou 13 dígitos).
+  const isbnGuess = scanned ? scanned.replace(/[^0-9Xx]/g, "") : "";
+  const looksLikeIsbn = isbnGuess.length === 10 || isbnGuess.length === 13;
+
   const reset = useCallback(() => {
     setFoundId(null);
-    setNotFoundCode(null);
+    setScanned(null);
     setManual("");
   }, []);
 
@@ -218,27 +224,29 @@ export default function AdminEscanearPage() {
           )}
 
           {/* Não encontrado */}
-          {notFoundCode !== null && !found && (
+          {scanned !== null && !found && (
             <Card>
               <CardContent className="pt-6 text-center space-y-4">
                 <AlertCircle className="h-10 w-10 text-amber-500 mx-auto" />
                 <p className="text-foreground font-medium">
                   Livro não encontrado no acervo.
                 </p>
-                {notFoundCode ? (
-                  <>
-                    <p className="text-sm text-muted-foreground">
-                      Código lido: <span className="font-mono">{notFoundCode}</span>
-                    </p>
-                    <Button onClick={() => setRegisterOpen(true)}>
-                      <BookPlus className="mr-2 h-4 w-4" />
-                      Cadastrar este livro
-                    </Button>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Esse QR não corresponde a nenhum livro cadastrado.
+                <p className="text-sm text-muted-foreground break-all">
+                  Conteúdo lido:{" "}
+                  <span className="font-mono">{scanned}</span>
+                </p>
+                {scanned.toUpperCase().startsWith("BIBLIO:") && (
+                  <p className="text-xs text-amber-600">
+                    Esse QR é do sistema, mas aponta para um livro que não está
+                    mais no acervo (provavelmente o livro foi recriado ou o banco
+                    mudou). Gere a etiqueta de novo na seção abaixo.
                   </p>
+                )}
+                {looksLikeIsbn && (
+                  <Button onClick={() => setRegisterOpen(true)}>
+                    <BookPlus className="mr-2 h-4 w-4" />
+                    Cadastrar este livro
+                  </Button>
                 )}
                 <Button variant="ghost" onClick={reset}>
                   Limpar
@@ -295,14 +303,14 @@ export default function AdminEscanearPage() {
             <DialogTitle>Cadastrar livro</DialogTitle>
           </DialogHeader>
           <QuickRegisterForm
-            isbn={notFoundCode || ""}
+            isbn={isbnGuess}
             onCancel={() => setRegisterOpen(false)}
             onSubmit={async (data) => {
               const created = await addBook(data);
               setRegisterOpen(false);
               if (created) {
                 setFoundId(created.id);
-                setNotFoundCode(null);
+                setScanned(null);
                 toast.success("Livro cadastrado!");
               } else {
                 toast.error("Não foi possível cadastrar o livro.");

@@ -56,12 +56,18 @@ export async function POST(req: Request) {
     const loan = await prisma.$transaction(async (tx) => {
       const book = await tx.book.findUnique({ where: { id: bookId } });
       if (!book) throw new Error("NOT_FOUND");
-      if (book.availableCopies <= 0) throw new Error("UNAVAILABLE");
 
-      await tx.book.update({
-        where: { id: bookId },
-        data: { availableCopies: { decrement: 1 } },
+      // Regra: uma cópia por usuário — bloqueia se o leitor já está com este livro.
+      const alreadyHas = await tx.loan.count({
+        where: { bookId, userId: borrowerId, returnDate: null },
       });
+      if (alreadyHas > 0) throw new Error("ALREADY_BORROWED");
+
+      // Disponibilidade real = total de cópias - empréstimos ativos do livro.
+      const activeLoans = await tx.loan.count({
+        where: { bookId, returnDate: null },
+      });
+      if (activeLoans >= book.totalCopies) throw new Error("UNAVAILABLE");
 
       const dueDate = new Date(Date.now() + LOAN_DAYS * 24 * 60 * 60 * 1000);
       return tx.loan.create({
@@ -75,6 +81,12 @@ export async function POST(req: Request) {
     const message = err instanceof Error ? err.message : "";
     if (message === "NOT_FOUND") {
       return NextResponse.json({ error: "Livro não encontrado." }, { status: 404 });
+    }
+    if (message === "ALREADY_BORROWED") {
+      return NextResponse.json(
+        { error: "Este leitor já está com um exemplar deste livro." },
+        { status: 409 }
+      );
     }
     if (message === "UNAVAILABLE") {
       return NextResponse.json({ error: "Nenhuma cópia disponível." }, { status: 409 });

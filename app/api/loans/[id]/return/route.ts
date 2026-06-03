@@ -24,11 +24,8 @@ export async function POST(_req: Request, { params }: Params) {
       if (!owns && !isStaff(user.role)) throw new Error("FORBIDDEN");
       if (existing.returnDate) throw new Error("ALREADY_RETURNED");
 
-      await tx.book.update({
-        where: { id: existing.bookId },
-        data: { availableCopies: { increment: 1 } },
-      });
-
+      // Basta encerrar o empréstimo: a disponibilidade é recalculada
+      // automaticamente (total de cópias - empréstimos ativos).
       return tx.loan.update({
         where: { id },
         data: { returnDate: new Date() },
