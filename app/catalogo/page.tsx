@@ -8,7 +8,6 @@ import { Header } from "@/components/header";
 import { BookModal } from "@/components/book-modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { genres } from "@/lib/data";
 import type { Book } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +17,10 @@ export default function CatalogoPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("Todos");
   const [showFilters, setShowFilters] = useState(false);
+  const genreOptions = useMemo(
+    () => ["Todos", ...Array.from(new Set(books.map((b) => b.genre).filter(Boolean)))],
+    [books]
+  );
 
   const filteredBooks = useMemo(() => {
     let result = books;
@@ -82,7 +85,7 @@ export default function CatalogoPage() {
               !showFilters && "hidden md:flex"
             )}
           >
-            {genres.map((genre) => (
+            {genreOptions.map((genre) => (
               <Button
                 key={genre}
                 variant={selectedGenre === genre ? "default" : "secondary"}

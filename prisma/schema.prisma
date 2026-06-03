@@ -51,6 +51,8 @@ model Loan {
   loanDate   DateTime  @default(now())
   dueDate    DateTime
   returnDate DateTime?
+  pickedUpAt DateTime?
+  renewals   Int       @default(0)
   createdAt  DateTime  @default(now())
 
   book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)

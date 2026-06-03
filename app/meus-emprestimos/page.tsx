@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { BookOpen, Calendar, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { toast } from "sonner";
 import { useLibrary } from "@/contexts/library-context";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -17,16 +18,24 @@ import {
 import Image from "next/image";
 
 export default function MeusEmprestimosPage() {
-  const { currentUser, getUserLoans, returnBook, loading } = useLibrary();
+  const { currentUser, getUserLoans, renewLoan, loading } = useLibrary();
 
   const loans = useMemo(() => {
     if (!currentUser) return [];
     return getUserLoans(currentUser.id);
   }, [currentUser, getUserLoans]);
 
+  const pendingLoans = loans.filter((l) => l.status === "pending");
   const activeLoans = loans.filter((l) => l.status === "active");
   const overdueLoans = loans.filter((l) => l.status === "overdue");
   const returnedLoans = loans.filter((l) => l.status === "returned");
+
+  const handleRenew = async (loanId: string) => {
+    const res = await renewLoan(loanId);
+    toast[res.ok ? "success" : "error"](
+      res.ok ? "Empréstimo renovado!" : res.error || "Não foi possível renovar."
+    );
+  };
 
   if (loading) {
     return (
@@ -112,6 +121,45 @@ export default function MeusEmprestimosPage() {
             </Card>
           </div>
 
+          {/* Aguardando retirada */}
+          {pendingLoans.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Aguardando retirada</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {pendingLoans.map((loan) => (
+                  <div
+                    key={loan.id}
+                    className="flex items-center gap-4 p-4 rounded-lg bg-amber-500/10"
+                  >
+                    <div className="relative w-16 h-24 flex-shrink-0 rounded overflow-hidden">
+                      <Image
+                        src={loan.book.cover}
+                        alt={loan.book.title}
+                        fill
+                        className="object-cover"
+                        sizes="64px"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-foreground line-clamp-1">
+                        {loan.book.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {loan.book.author}
+                      </p>
+                      <span className="inline-flex items-center gap-1 mt-2 text-xs px-2 py-1 rounded-full bg-amber-500/20 text-amber-500">
+                        <Clock className="h-3 w-3" />
+                        Vá à biblioteca — o livro será escaneado na retirada
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Active & Overdue Loans */}
           {(activeLoans.length > 0 || overdueLoans.length > 0) && (
             <Card>
@@ -190,10 +238,14 @@ export default function MeusEmprestimosPage() {
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={() => returnBook(loan.id)}
+                        disabled={loan.renewals >= 2}
+                        onClick={() => handleRenew(loan.id)}
                       >
-                        Devolver
+                        {loan.renewals >= 2 ? "Sem renovações" : "Renovar"}
                       </Button>
+                      <p className="text-[10px] text-muted-foreground text-center">
+                        Devolução na biblioteca
+                      </p>
                     </div>
                   </div>
                 ))}

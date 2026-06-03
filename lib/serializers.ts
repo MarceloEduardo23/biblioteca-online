@@ -48,8 +48,11 @@ export function serializeUser(user: PrismaUserPublic) {
   };
 }
 
-export function loanStatus(loan: Pick<PrismaLoan, "returnDate" | "dueDate">) {
+export function loanStatus(
+  loan: Pick<PrismaLoan, "returnDate" | "dueDate" | "pickedUpAt">
+) {
   if (loan.returnDate) return "returned" as const;
+  if (!loan.pickedUpAt) return "pending" as const; // aguardando retirada (escaneamento)
   if (loan.dueDate.getTime() < Date.now()) return "overdue" as const;
   return "active" as const;
 }
@@ -67,6 +70,8 @@ export function serializeLoan(loan: LoanWithRelations) {
     loanDate: loan.loanDate.toISOString(),
     dueDate: loan.dueDate.toISOString(),
     returnDate: loan.returnDate ? loan.returnDate.toISOString() : undefined,
+    pickedUpAt: loan.pickedUpAt ? loan.pickedUpAt.toISOString() : undefined,
+    renewals: loan.renewals,
     status: loanStatus(loan),
     book: serializeBook(loan.book),
     user: serializeUser(loan.user),

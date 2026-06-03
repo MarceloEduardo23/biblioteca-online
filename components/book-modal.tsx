@@ -22,7 +22,7 @@ interface BookModalProps {
 }
 
 export function BookModal({ book, open, onClose }: BookModalProps) {
-  const { currentUser, createLoan } = useLibrary();
+  const { currentUser, createLoan, loans } = useLibrary();
   const [loanCreated, setLoanCreated] = useState<LoanWithDetails | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -42,7 +42,13 @@ export function BookModal({ book, open, onClose }: BookModalProps) {
     onClose();
   };
 
-  const canBorrow = currentUser && book.availableCopies > 0;
+  const myActiveLoans = loans.filter(
+    (l) => l.userId === currentUser?.id && l.status !== "returned"
+  );
+  const alreadyHas = myActiveLoans.some((l) => l.bookId === book.id);
+  const reachedLimit = myActiveLoans.length >= 3;
+  const canBorrow =
+    !!currentUser && book.availableCopies > 0 && !alreadyHas && !reachedLimit;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -75,10 +81,14 @@ export function BookModal({ book, open, onClose }: BookModalProps) {
               </div>
 
               <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-1">
-                  <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                  <span className="text-foreground">{book.rating}</span>
-                </div>
+                {book.rating > 0 ? (
+                  <div className="flex items-center gap-1">
+                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                    <span className="text-foreground">{book.rating}</span>
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground">Sem avaliação</span>
+                )}
                 <span className="text-muted-foreground">|</span>
                 <span className="text-muted-foreground">{book.publishedYear}</span>
                 <span className="text-muted-foreground">|</span>
@@ -125,6 +135,10 @@ export function BookModal({ book, open, onClose }: BookModalProps) {
                   >
                     {loading
                       ? "Processando..."
+                      : alreadyHas
+                      ? "Você já está com este livro"
+                      : reachedLimit
+                      ? "Limite de 3 livros atingido"
                       : book.availableCopies > 0
                       ? "Realizar Empréstimo"
                       : "Indisponível"}
@@ -160,9 +174,10 @@ function LoanConfirmation({
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold text-foreground">Empréstimo Realizado!</h2>
+        <h2 className="text-2xl font-bold text-foreground">Empréstimo reservado!</h2>
         <p className="text-muted-foreground mt-1">
-          Apresente o QR Code abaixo na retirada
+          Vá até a biblioteca para retirar — o atendente vai escanear o livro
+          para confirmar a retirada.
         </p>
       </div>
 

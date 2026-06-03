@@ -6,7 +6,6 @@ import { Header } from "@/components/header";
 import { HeroBanner } from "@/components/hero-banner";
 import { BookCarousel } from "@/components/book-carousel";
 import { BookModal } from "@/components/book-modal";
-import { genres } from "@/lib/data";
 import type { Book } from "@/lib/types";
 
 export default function HomePage() {
@@ -29,7 +28,10 @@ export default function HomePage() {
 
   const booksByGenre = useMemo(() => {
     const grouped: Record<string, Book[]> = {};
-    genres.slice(1).forEach((genre) => {
+    const usedGenres = Array.from(
+      new Set(filteredBooks.map((book) => book.genre).filter(Boolean))
+    );
+    usedGenres.forEach((genre) => {
       const genreBooks = filteredBooks.filter((book) => book.genre === genre);
       if (genreBooks.length > 0) {
         grouped[genre] = genreBooks;

@@ -24,6 +24,8 @@ function reviveLoan(raw: any): LoanWithDetails {
     loanDate: new Date(raw.loanDate),
     dueDate: new Date(raw.dueDate),
     returnDate: raw.returnDate ? new Date(raw.returnDate) : undefined,
+    pickedUpAt: raw.pickedUpAt ? new Date(raw.pickedUpAt) : undefined,
+    renewals: raw.renewals ?? 0,
     book: raw.book as Book,
     user: reviveUser(raw.user),
   };
@@ -59,6 +61,8 @@ interface LibraryContextType {
     target: { userId?: string; email?: string }
   ) => Promise<{ ok: boolean; error?: string; loan?: LoanWithDetails }>;
   returnBook: (loanId: string) => Promise<boolean>;
+  pickupLoan: (loanId: string) => Promise<{ ok: boolean; error?: string }>;
+  renewLoan: (loanId: string) => Promise<{ ok: boolean; error?: string }>;
   getBookById: (id: string) => Book | undefined;
   getUserById: (id: string) => User | undefined;
   getUserLoans: (userId: string) => LoanWithDetails[];
@@ -248,6 +252,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
             bookId,
             userId: target.userId,
             userEmail: target.email,
+            markPickedUp: true,
           }),
         });
         const loan = reviveLoan(data.loan);
@@ -277,6 +282,34 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       }
     },
     [syncBookFromLoan]
+  );
+
+  const pickupLoan = useCallback(
+    async (loanId: string): Promise<{ ok: boolean; error?: string }> => {
+      try {
+        const data = await api(`/api/loans/${loanId}/pickup`, { method: "POST" });
+        const loan = reviveLoan(data.loan);
+        setLoans((prev) => prev.map((l) => (l.id === loan.id ? loan : l)));
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : "Erro." };
+      }
+    },
+    []
+  );
+
+  const renewLoan = useCallback(
+    async (loanId: string): Promise<{ ok: boolean; error?: string }> => {
+      try {
+        const data = await api(`/api/loans/${loanId}/renew`, { method: "POST" });
+        const loan = reviveLoan(data.loan);
+        setLoans((prev) => prev.map((l) => (l.id === loan.id ? loan : l)));
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : "Erro." };
+      }
+    },
+    []
   );
 
   const addBook = useCallback(async (book: Omit<Book, "id">): Promise<Book | null> => {
@@ -416,6 +449,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         createLoan,
         createLoanFor,
         returnBook,
+        pickupLoan,
+        renewLoan,
         getBookById,
         getUserById,
         getUserLoans,

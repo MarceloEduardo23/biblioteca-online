@@ -63,6 +63,12 @@ export async function POST(req: Request) {
       });
       if (alreadyHas > 0) throw new Error("ALREADY_BORROWED");
 
+      // Regra: no máximo 3 livros simultâneos por usuário.
+      const userActive = await tx.loan.count({
+        where: { userId: borrowerId, returnDate: null },
+      });
+      if (userActive >= 3) throw new Error("LIMIT_REACHED");
+
       // Disponibilidade real = total de cópias - empréstimos ativos do livro.
       const activeLoans = await tx.loan.count({
         where: { bookId, returnDate: null },
@@ -70,8 +76,12 @@ export async function POST(req: Request) {
       if (activeLoans >= book.totalCopies) throw new Error("UNAVAILABLE");
 
       const dueDate = new Date(Date.now() + LOAN_DAYS * 24 * 60 * 60 * 1000);
+      // Quando a equipe empresta escaneando o livro, a retirada já é confirmada.
+      // No autoatendimento do leitor, fica pendente até escanear na biblioteca.
+      const pickedUpAt =
+        isStaff(user.role) && body.markPickedUp === true ? new Date() : null;
       return tx.loan.create({
-        data: { bookId, userId: borrowerId, dueDate },
+        data: { bookId, userId: borrowerId, dueDate, pickedUpAt },
         include: { book: true, user: { select: publicUserSelect } },
       });
     });
@@ -85,6 +95,12 @@ export async function POST(req: Request) {
     if (message === "ALREADY_BORROWED") {
       return NextResponse.json(
         { error: "Este leitor já está com um exemplar deste livro." },
+        { status: 409 }
+      );
+    }
+    if (message === "LIMIT_REACHED") {
+      return NextResponse.json(
+        { error: "Limite de 3 livros por usuário atingido." },
         { status: 409 }
       );
     }

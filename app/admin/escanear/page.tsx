@@ -43,6 +43,7 @@ export default function AdminEscanearPage() {
     loading,
     createLoanFor,
     returnBook,
+    pickupLoan,
     addBook,
   } = useLibrary();
 
@@ -202,14 +203,24 @@ export default function AdminEscanearPage() {
             <FoundBookPanel
               book={found}
               users={users}
+              pendingLoans={loans.filter(
+                (l) => l.bookId === found.id && l.status === "pending"
+              )}
               activeLoans={loans.filter(
-                (l) => l.bookId === found.id && l.status !== "returned"
+                (l) =>
+                  l.bookId === found.id &&
+                  (l.status === "active" || l.status === "overdue")
               )}
               onLend={async (email) => {
                 const res = await createLoanFor(found.id, { email });
-                if (res.ok) toast.success("Empréstimo registrado!");
+                if (res.ok) toast.success("Empréstimo registrado e entregue!");
                 else toast.error(res.error || "Não foi possível emprestar.");
                 return res.ok;
+              }}
+              onPickup={async (loanId) => {
+                const res = await pickupLoan(loanId);
+                if (res.ok) toast.success("Retirada confirmada!");
+                else toast.error(res.error || "Não foi possível confirmar.");
               }}
               onReturn={async (loanId) => {
                 const ok = await returnBook(loanId);
@@ -329,13 +340,16 @@ export default function AdminEscanearPage() {
 function FoundBookPanel({
   book,
   users,
+  pendingLoans,
   activeLoans,
   onLend,
+  onPickup,
   onReturn,
   onScanAnother,
 }: {
   book: Book;
   users: { id: string; name: string; email: string }[];
+  pendingLoans: { id: string; user: { name: string } }[];
   activeLoans: {
     id: string;
     user: { name: string };
@@ -343,6 +357,7 @@ function FoundBookPanel({
     status: string;
   }[];
   onLend: (email: string) => Promise<boolean>;
+  onPickup: (loanId: string) => Promise<void>;
   onReturn: (loanId: string) => Promise<void>;
   onScanAnother: () => void;
 }) {
@@ -378,12 +393,15 @@ function FoundBookPanel({
         </div>
 
         <Tabs defaultValue="emprestimo">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="emprestimo">Empréstimo</TabsTrigger>
+            <TabsTrigger value="retirada">
+              Retirada{pendingLoans.length > 0 ? ` (${pendingLoans.length})` : ""}
+            </TabsTrigger>
             <TabsTrigger value="devolucao">Devolução</TabsTrigger>
           </TabsList>
 
-          {/* Empréstimo */}
+          {/* Empréstimo (a equipe escaneia o livro e entrega na hora) */}
           <TabsContent value="emprestimo" className="space-y-3 pt-3">
             <div className="space-y-1">
               <Label htmlFor="reader">Email do leitor</Label>
@@ -415,11 +433,47 @@ function FoundBookPanel({
             >
               {book.availableCopies <= 0
                 ? "Sem exemplares disponíveis"
-                : "Registrar empréstimo"}
+                : "Emprestar e entregar"}
             </Button>
           </TabsContent>
 
-          {/* Devolução */}
+          {/* Retirada (confirma a entrega de uma reserva feita pelo leitor) */}
+          <TabsContent value="retirada" className="space-y-3 pt-3">
+            {pendingLoans.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Ninguém aguardando retirada deste livro.
+              </p>
+            ) : (
+              pendingLoans.map((loan) => (
+                <div
+                  key={loan.id}
+                  className="flex items-center justify-between gap-3 rounded-lg bg-amber-500/10 p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {loan.user.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Aguardando retirada
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      await onPickup(loan.id);
+                      setBusy(false);
+                    }}
+                  >
+                    Confirmar retirada
+                  </Button>
+                </div>
+              ))
+            )}
+          </TabsContent>
+
+          {/* Devolução (livro escaneado de volta) */}
           <TabsContent value="devolucao" className="space-y-3 pt-3">
             {activeLoans.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">

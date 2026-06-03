@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Users,
   BookCopy,
+  ScanLine,
 } from "lucide-react";
 import { useLibrary } from "@/contexts/library-context";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,14 @@ export function Header({ onSearch, searchQuery }: HeaderProps) {
                 Painel Admin
               </Link>
             )}
+            {isStaff && (
+              <Link
+                href="/admin/escanear"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Escanear
+              </Link>
+            )}
           </nav>
 
           {/* Search Bar */}
@@ -150,7 +159,13 @@ export function Header({ onSearch, searchQuery }: HeaderProps) {
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/admin/users" className="cursor-pointer">
+                        <Link href="/admin/escanear" className="cursor-pointer">
+                          <ScanLine className="mr-2 h-4 w-4" />
+                          Escanear
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/usuarios" className="cursor-pointer">
                           <Users className="mr-2 h-4 w-4" />
                           Gerenciar Usuários
                         </Link>
@@ -231,6 +246,15 @@ export function Header({ onSearch, searchQuery }: HeaderProps) {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Painel Admin
+                </Link>
+              )}
+              {isStaff && (
+                <Link
+                  href="/admin/escanear"
+                  className="py-2 text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Escanear
                 </Link>
               )}
             </nav>

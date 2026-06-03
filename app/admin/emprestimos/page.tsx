@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
-import { AlertCircle, Search, QrCode, RotateCcw } from "lucide-react";
+import { AlertCircle, Search, QrCode, RotateCcw, Check } from "lucide-react";
+import { toast } from "sonner";
 import { useLibrary } from "@/contexts/library-context";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/select";
 
 export default function AdminEmprestimosPage() {
-  const { currentUser, getAllLoansWithDetails, returnBook, loading } = useLibrary();
+  const { currentUser, getAllLoansWithDetails, returnBook, pickupLoan, loading } = useLibrary();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -158,14 +159,18 @@ export default function AdminEmprestimosPage() {
                       </div>
                       <span
                         className={`text-xs px-3 py-1.5 rounded-full ${
-                          loan.status === "active"
+                          loan.status === "pending"
+                            ? "bg-amber-500/20 text-amber-500"
+                            : loan.status === "active"
                             ? "bg-blue-500/20 text-blue-500"
                             : loan.status === "overdue"
                             ? "bg-red-500/20 text-red-500"
                             : "bg-emerald-500/20 text-emerald-500"
                         }`}
                       >
-                        {loan.status === "active"
+                        {loan.status === "pending"
+                          ? "Aguardando retirada"
+                          : loan.status === "active"
                           ? "Ativo"
                           : loan.status === "overdue"
                           ? "Atrasado"
@@ -206,11 +211,33 @@ export default function AdminEmprestimosPage() {
                             </div>
                           </DialogContent>
                         </Dialog>
-                        {loan.status !== "returned" && (
+                        {loan.status === "pending" && (
                           <Button
                             variant="default"
                             size="sm"
-                            onClick={() => returnBook(loan.id)}
+                            onClick={async () => {
+                              const res = await pickupLoan(loan.id);
+                              toast[res.ok ? "success" : "error"](
+                                res.ok
+                                  ? "Retirada confirmada!"
+                                  : res.error || "Falha ao confirmar."
+                              );
+                            }}
+                          >
+                            <Check className="h-4 w-4 mr-1" />
+                            Confirmar retirada
+                          </Button>
+                        )}
+                        {(loan.status === "active" || loan.status === "overdue") && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={async () => {
+                              const ok = await returnBook(loan.id);
+                              toast[ok ? "success" : "error"](
+                                ok ? "Devolução registrada!" : "Falha ao devolver."
+                              );
+                            }}
                           >
                             <RotateCcw className="h-4 w-4 mr-1" />
                             Devolver

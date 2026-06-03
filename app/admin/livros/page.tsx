@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageUpload } from "@/components/image-upload";
-import { genres } from "@/lib/data";
 import type { Book } from "@/lib/types";
 
 export default function AdminLivrosPage() {
@@ -185,8 +184,7 @@ function BookForm({
   onCancel: () => void;
 }) {
   const { categories } = useLibrary();
-  const categoryNames =
-    categories.length > 0 ? categories.map((c) => c.name) : genres.slice(1);
+  const categoryNames = categories.map((c) => c.name);
   const [formData, setFormData] = useState({
     title: book?.title || "",
     author: book?.author || "",
@@ -197,7 +195,7 @@ function BookForm({
     publishedYear: book?.publishedYear || new Date().getFullYear(),
     totalCopies: book?.totalCopies || 1,
     availableCopies: book?.availableCopies || 1,
-    rating: book?.rating || 4.0,
+    rating: book?.rating ?? 0,
   });
 
   const handleSubmit = (e: React.FormEvent) => {

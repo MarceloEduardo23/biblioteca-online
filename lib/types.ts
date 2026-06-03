@@ -35,7 +35,9 @@ export interface Loan {
   loanDate: Date;
   dueDate: Date;
   returnDate?: Date;
-  status: "active" | "returned" | "overdue";
+  pickedUpAt?: Date;
+  renewals: number;
+  status: "pending" | "active" | "returned" | "overdue";
 }
 
 export interface LoanWithDetails extends Loan {
