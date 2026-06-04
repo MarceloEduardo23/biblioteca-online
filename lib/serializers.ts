@@ -71,6 +71,12 @@ export function serializeLoan(loan: LoanWithRelations) {
     dueDate: loan.dueDate.toISOString(),
     returnDate: loan.returnDate ? loan.returnDate.toISOString() : undefined,
     pickedUpAt: loan.pickedUpAt ? loan.pickedUpAt.toISOString() : undefined,
+    reservationExpiresAt:
+      !loan.pickedUpAt && !loan.returnDate
+        ? new Date(
+            loan.loanDate.getTime() + 30 * 60 * 1000
+          ).toISOString()
+        : undefined,
     renewals: loan.renewals,
     status: loanStatus(loan),
     book: serializeBook(loan.book),

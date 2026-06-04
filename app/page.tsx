@@ -4,12 +4,13 @@ import { useState, useMemo } from "react";
 import { useLibrary } from "@/contexts/library-context";
 import { Header } from "@/components/header";
 import { HeroBanner } from "@/components/hero-banner";
+import { SlideCarousel } from "@/components/slide-carousel";
 import { BookCarousel } from "@/components/book-carousel";
 import { BookModal } from "@/components/book-modal";
 import type { Book } from "@/lib/types";
 
 export default function HomePage() {
-  const { books } = useLibrary();
+  const { books, slides } = useLibrary();
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -44,10 +45,6 @@ export default function HomePage() {
     return [...filteredBooks].slice(0, 10);
   }, [filteredBooks]);
 
-  const highRated = useMemo(() => {
-    return [...filteredBooks].sort((a, b) => b.rating - a.rating).slice(0, 10);
-  }, [filteredBooks]);
-
   const available = useMemo(() => {
     return filteredBooks.filter((book) => book.availableCopies > 0).slice(0, 10);
   }, [filteredBooks]);
@@ -57,9 +54,14 @@ export default function HomePage() {
       <Header onSearch={setSearchQuery} searchQuery={searchQuery} />
 
       <main>
-        {!searchQuery && featuredBook && (
-          <HeroBanner book={featuredBook} onOpenBook={setSelectedBook} />
-        )}
+        {!searchQuery &&
+          (slides.length > 0 ? (
+            <SlideCarousel slides={slides} />
+          ) : (
+            featuredBook && (
+              <HeroBanner book={featuredBook} onOpenBook={setSelectedBook} />
+            )
+          ))}
 
         <div className="pb-20 space-y-2">
           {searchQuery && (
@@ -84,12 +86,6 @@ export default function HomePage() {
               <BookCarousel
                 title="Disponíveis Agora"
                 books={available}
-                onBookClick={setSelectedBook}
-              />
-
-              <BookCarousel
-                title="Mais Bem Avaliados"
-                books={highRated}
                 onBookClick={setSelectedBook}
               />
 

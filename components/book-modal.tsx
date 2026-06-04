@@ -1,9 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Star, Clock, BookOpen, X } from "lucide-react";
-import { toast } from "sonner";
-import { QRCodeSVG } from "qrcode.react";
+import { Clock, BookOpen } from "lucide-react";
 import type { Book, LoanWithDetails } from "@/lib/types";
 import { useLibrary } from "@/contexts/library-context";
 import { Button } from "@/components/ui/button";
@@ -14,6 +12,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { ReservationCountdown } from "@/components/reservation-countdown";
 import { useState } from "react";
 
 interface BookModalProps {
@@ -23,7 +22,7 @@ interface BookModalProps {
 }
 
 export function BookModal({ book, open, onClose }: BookModalProps) {
-  const { currentUser, createLoan, loans, rateBook } = useLibrary();
+  const { currentUser, createLoan, loans } = useLibrary();
   const [loanCreated, setLoanCreated] = useState<LoanWithDetails | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -41,13 +40,6 @@ export function BookModal({ book, open, onClose }: BookModalProps) {
   const handleClose = () => {
     setLoanCreated(null);
     onClose();
-  };
-
-  const handleRate = async (n: number) => {
-    const res = await rateBook(book.id, n);
-    toast[res.ok ? "success" : "error"](
-      res.ok ? "Avaliação registrada!" : res.error || "Erro ao avaliar."
-    );
   };
 
   const myActiveLoans = loans.filter(
@@ -89,44 +81,10 @@ export function BookModal({ book, open, onClose }: BookModalProps) {
               </div>
 
               <div className="flex items-center gap-4 text-sm">
-                {book.rating > 0 ? (
-                  <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                    <span className="text-foreground">{book.rating}</span>
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground">Sem avaliação</span>
-                )}
-                <span className="text-muted-foreground">|</span>
                 <span className="text-muted-foreground">{book.publishedYear}</span>
                 <span className="text-muted-foreground">|</span>
                 <span className="text-muted-foreground">{book.genre}</span>
               </div>
-
-              {currentUser && (
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-muted-foreground mr-1">
-                    Sua avaliação:
-                  </span>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => handleRate(n)}
-                      aria-label={`Avaliar com ${n}`}
-                      className="p-0.5"
-                    >
-                      <Star
-                        className={`h-5 w-5 ${
-                          n <= (book.rating || 0)
-                            ? "fill-amber-400 text-amber-400"
-                            : "text-muted-foreground"
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
 
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {book.description}
@@ -193,13 +151,6 @@ function LoanConfirmation({
   loan: LoanWithDetails;
   onClose: () => void;
 }) {
-  const qrData = JSON.stringify({
-    loanId: loan.id,
-    bookTitle: loan.book.title,
-    userName: loan.user.name,
-    dueDate: loan.dueDate.toISOString(),
-  });
-
   return (
     <div className="flex flex-col items-center text-center py-6 space-y-6">
       <div className="bg-emerald-500/20 p-4 rounded-full">
@@ -207,15 +158,19 @@ function LoanConfirmation({
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold text-foreground">Empréstimo reservado!</h2>
+        <h2 className="text-2xl font-bold text-foreground">Livro reservado!</h2>
         <p className="text-muted-foreground mt-1">
-          Vá até a biblioteca para retirar — o atendente vai escanear o livro
-          para confirmar a retirada.
+          Você tem 30 minutos para retirar na biblioteca. O atendente vai
+          escanear o livro para confirmar a retirada.
         </p>
       </div>
 
-      <div className="bg-white p-4 rounded-xl">
-        <QRCodeSVG value={qrData} size={200} level="H" />
+      <div className="bg-secondary/50 rounded-xl px-8 py-5">
+        <p className="text-xs text-muted-foreground mb-1">Tempo para retirada</p>
+        <ReservationCountdown
+          expiresAt={loan.reservationExpiresAt}
+          className="text-4xl font-bold tabular-nums text-foreground"
+        />
       </div>
 
       <div className="space-y-2 text-sm">
@@ -224,10 +179,6 @@ function LoanConfirmation({
         </p>
         <p className="text-foreground">
           <strong>Leitor:</strong> {loan.user.name}
-        </p>
-        <p className="text-foreground">
-          <strong>Data de Devolução:</strong>{" "}
-          {loan.dueDate.toLocaleDateString("pt-BR")}
         </p>
       </div>
 

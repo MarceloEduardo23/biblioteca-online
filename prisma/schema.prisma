@@ -64,3 +64,11 @@ model Category {
   name      String   @unique
   createdAt DateTime @default(now())
 }
+
+model Slide {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  imageUrl    String
+  createdAt   DateTime @default(now())
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
   Camera,
@@ -28,7 +28,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { BarcodeScanner } from "@/components/barcode-scanner";
-import { BookQR } from "@/components/book-qr";
+import { BookQR, QR_PREFIX } from "@/components/book-qr";
+import { QRCodeSVG } from "qrcode.react";
 import { ImageUpload } from "@/components/image-upload";
 import type { Book } from "@/lib/types";
 
@@ -57,6 +58,35 @@ export default function AdminEscanearPage() {
   const [manual, setManual] = useState("");
   const [registerOpen, setRegisterOpen] = useState(false);
   const [showLabels, setShowLabels] = useState(false);
+  const [perPage, setPerPage] = useState(6);
+  const labelsRef = useRef<HTMLDivElement | null>(null);
+
+  // Imprime as etiquetas de todos os livros, com a quantidade escolhida por folha.
+  const printLabels = () => {
+    const container = labelsRef.current;
+    if (!container) return;
+    const cells = Array.from(container.children).map((c) => c.outerHTML);
+    const cols = perPage <= 4 ? 2 : perPage <= 9 ? 3 : 4;
+    let pages = "";
+    for (let i = 0; i < cells.length; i += perPage) {
+      const group = cells.slice(i, i + perPage).join("");
+      pages += `<div class="page" style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:12px;page-break-after:always">${group}</div>`;
+    }
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(
+      `<!doctype html><html><head><title>Etiquetas QR</title><style>` +
+        `body{font-family:system-ui,Arial,sans-serif;margin:12mm}` +
+        `.label{display:flex;flex-direction:column;align-items:center;justify-content:center;` +
+        `border:1px dashed #bbb;border-radius:8px;padding:8px;break-inside:avoid}` +
+        `.label svg{width:100%;height:auto;max-width:150px}` +
+        `.label p{font-size:11px;margin:6px 0 0;text-align:center}` +
+        `</style></head><body>${pages}</body></html>`
+    );
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 300);
+  };
 
   // Deriva o livro a partir do estado atual (mantém disponibilidade em dia).
   const found = useMemo(
@@ -283,16 +313,57 @@ export default function AdminEscanearPage() {
                     Nenhum livro cadastrado ainda.
                   </p>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                    {books.map((b) => (
-                      <div key={b.id} className="flex flex-col items-center gap-2">
-                        <BookQR book={b} size={120} />
-                        <p className="text-xs text-center text-muted-foreground line-clamp-2">
-                          {b.title}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                  <>
+                    <div className="flex flex-wrap items-center gap-2 mb-4">
+                      <span className="text-sm text-muted-foreground">
+                        QR por folha:
+                      </span>
+                      <select
+                        value={perPage}
+                        onChange={(e) => setPerPage(Number(e.target.value))}
+                        className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+                      >
+                        <option value={4}>4</option>
+                        <option value={6}>6</option>
+                        <option value={9}>9</option>
+                        <option value={12}>12</option>
+                      </select>
+                      <Button size="sm" onClick={printLabels}>
+                        <QrCode className="mr-2 h-4 w-4" />
+                        Imprimir folha
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                      {books.map((b) => (
+                        <div key={b.id} className="flex flex-col items-center gap-2">
+                          <BookQR book={b} size={120} />
+                          <p className="text-xs text-center text-muted-foreground line-clamp-2">
+                            {b.title}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Container oculto usado só para montar a folha de impressão */}
+                    <div
+                      ref={labelsRef}
+                      style={{
+                        position: "absolute",
+                        width: 0,
+                        height: 0,
+                        overflow: "hidden",
+                      }}
+                      aria-hidden
+                    >
+                      {books.map((b) => (
+                        <div className="label" key={b.id}>
+                          <QRCodeSVG value={`${QR_PREFIX}${b.id}`} size={150} />
+                          <p>{b.title}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </CardContent>
             )}

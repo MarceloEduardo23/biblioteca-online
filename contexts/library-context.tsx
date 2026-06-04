@@ -8,7 +8,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import type { User, Book, Category, LoanWithDetails } from "@/lib/types";
+import type { User, Book, Category, Slide, LoanWithDetails } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Funções utilitárias para converter o JSON da API (datas vêm como string)
@@ -25,6 +25,9 @@ function reviveLoan(raw: any): LoanWithDetails {
     dueDate: new Date(raw.dueDate),
     returnDate: raw.returnDate ? new Date(raw.returnDate) : undefined,
     pickedUpAt: raw.pickedUpAt ? new Date(raw.pickedUpAt) : undefined,
+    reservationExpiresAt: raw.reservationExpiresAt
+      ? new Date(raw.reservationExpiresAt)
+      : undefined,
     renewals: raw.renewals ?? 0,
     book: raw.book as Book,
     user: reviveUser(raw.user),
@@ -50,6 +53,7 @@ interface LibraryContextType {
   users: User[];
   books: Book[];
   categories: Category[];
+  slides: Slide[];
   loans: LoanWithDetails[];
   loading: boolean;
   login: (email: string, password: string) => Promise<AuthResult>;
@@ -81,6 +85,12 @@ interface LibraryContextType {
   updateCategory: (id: string, name: string) => Promise<{ ok: boolean; error?: string }>;
   deleteCategory: (id: string) => Promise<boolean>;
   rateBook: (bookId: string, rating: number) => Promise<{ ok: boolean; error?: string }>;
+  addSlide: (data: Omit<Slide, "id">) => Promise<{ ok: boolean; error?: string }>;
+  updateSlide: (
+    id: string,
+    data: Partial<Omit<Slide, "id">>
+  ) => Promise<{ ok: boolean; error?: string }>;
+  deleteSlide: (id: string) => Promise<boolean>;
 }
 
 const LibraryContext = createContext<LibraryContextType | undefined>(undefined);
@@ -90,6 +100,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [slides, setSlides] = useState<Slide[]>([]);
   const [loans, setLoans] = useState<LoanWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -108,6 +119,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       setCategories(data.categories as Category[]);
     } catch {
       setCategories([]);
+    }
+  }, []);
+
+  const loadSlides = useCallback(async () => {
+    try {
+      const data = await api("/api/slides");
+      setSlides(data.slides as Slide[]);
+    } catch {
+      setSlides([]);
     }
   }, []);
 
@@ -152,14 +172,14 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         const me = await api("/api/auth/me");
         const user = me.user ? reviveUser(me.user) : null;
         setCurrentUser(user);
-        await Promise.all([loadBooks(), loadCategories(), refreshForUser(user)]);
+        await Promise.all([loadBooks(), loadCategories(), loadSlides(), refreshForUser(user)]);
       } catch {
         // segue em frente mesmo se algo falhar (ex.: banco ainda não configurado)
       } finally {
         setLoading(false);
       }
     })();
-  }, [loadBooks, loadCategories, refreshForUser]);
+  }, [loadBooks, loadCategories, loadSlides, refreshForUser]);
 
   const login = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
@@ -435,6 +455,53 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const addSlide = useCallback(
+    async (data: Omit<Slide, "id">): Promise<{ ok: boolean; error?: string }> => {
+      try {
+        const res = await api("/api/slides", {
+          method: "POST",
+          body: JSON.stringify(data),
+        });
+        setSlides((prev) => [...prev, res.slide as Slide]);
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : "Erro." };
+      }
+    },
+    []
+  );
+
+  const updateSlide = useCallback(
+    async (
+      id: string,
+      data: Partial<Omit<Slide, "id">>
+    ): Promise<{ ok: boolean; error?: string }> => {
+      try {
+        const res = await api(`/api/slides/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(data),
+        });
+        setSlides((prev) =>
+          prev.map((s) => (s.id === id ? (res.slide as Slide) : s))
+        );
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : "Erro." };
+      }
+    },
+    []
+  );
+
+  const deleteSlide = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      await api(`/api/slides/${id}`, { method: "DELETE" });
+      setSlides((prev) => prev.filter((s) => s.id !== id));
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const rateBook = useCallback(
     async (
       bookId: string,
@@ -478,6 +545,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         users,
         books,
         categories,
+        slides,
         loans,
         loading,
         login,
@@ -501,6 +569,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         updateCategory,
         deleteCategory,
         rateBook,
+        addSlide,
+        updateSlide,
+        deleteSlide,
       }}
     >
       {children}

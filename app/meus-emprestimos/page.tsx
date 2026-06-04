@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { BookOpen, Calendar, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { ReservationCountdown } from "@/components/reservation-countdown";
 import { useLibrary } from "@/contexts/library-context";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -151,7 +152,11 @@ export default function MeusEmprestimosPage() {
                       </p>
                       <span className="inline-flex items-center gap-1 mt-2 text-xs px-2 py-1 rounded-full bg-amber-500/20 text-amber-500">
                         <Clock className="h-3 w-3" />
-                        Vá à biblioteca — o livro será escaneado na retirada
+                        Retire em{" "}
+                        <ReservationCountdown
+                          expiresAt={loan.reservationExpiresAt}
+                          className="font-semibold tabular-nums"
+                        />
                       </span>
                     </div>
                   </div>

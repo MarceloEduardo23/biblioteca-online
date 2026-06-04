@@ -115,6 +115,9 @@ export default function AdminPage() {
               <Button variant="outline" asChild>
                 <Link href="/admin/categorias">Categorias</Link>
               </Button>
+              <Button variant="outline" asChild>
+                <Link href="/admin/destaques">Destaques</Link>
+              </Button>
               {currentUser.role === "admin" && (
                 <Button variant="outline" asChild>
                   <Link href="/admin/usuarios">Gerenciar Usuários</Link>

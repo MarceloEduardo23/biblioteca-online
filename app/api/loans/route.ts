@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isStaff } from "@/lib/auth";
 import { serializeLoan, publicUserSelect } from "@/lib/serializers";
+import { cleanupExpiredReservations } from "@/lib/reservations";
 
 const LOAN_DAYS = 14;
 
@@ -12,6 +13,7 @@ export async function GET() {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
 
+  await cleanupExpiredReservations();
   const loans = await prisma.loan.findMany({
     where: isStaff(user.role) ? {} : { userId: user.id },
     include: { book: true, user: { select: publicUserSelect } },
@@ -33,6 +35,8 @@ export async function POST(req: Request) {
   if (!bookId) {
     return NextResponse.json({ error: "bookId é obrigatório." }, { status: 400 });
   }
+
+  await cleanupExpiredReservations();
 
   // Por padrão, o empréstimo é para o próprio usuário logado. Mas a equipe
   // (admin/bibliotecário) pode registrar em nome de um leitor — informando o

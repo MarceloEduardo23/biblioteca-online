@@ -14,6 +14,13 @@ export interface Category {
   name: string;
 }
 
+export interface Slide {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+}
+
 export interface Book {
   id: string;
   title: string;
@@ -36,6 +43,7 @@ export interface Loan {
   dueDate: Date;
   returnDate?: Date;
   pickedUpAt?: Date;
+  reservationExpiresAt?: Date;
   renewals: number;
   status: "pending" | "active" | "returned" | "overdue";
 }

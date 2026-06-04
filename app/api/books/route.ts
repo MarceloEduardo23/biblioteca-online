@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isStaff } from "@/lib/auth";
 import { serializeBook } from "@/lib/serializers";
+import { cleanupExpiredReservations } from "@/lib/reservations";
 
 // GET /api/books — lista pública de livros (disponibilidade calculada na hora).
 export async function GET() {
+  await cleanupExpiredReservations();
   const [books, activeLoans] = await Promise.all([
     prisma.book.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.loan.findMany({ where: { returnDate: null }, select: { bookId: true } }),
