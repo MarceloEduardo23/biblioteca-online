@@ -57,12 +57,20 @@ export function loanStatus(
   return "active" as const;
 }
 
+// Dias de atraso entre dueDate e uma data de referência (0 se não está atrasado).
+export function computeOverdueDays(dueDate: Date, reference: Date = new Date()): number {
+  if (dueDate.getTime() >= reference.getTime()) return 0;
+  return Math.ceil((reference.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 type LoanWithRelations = PrismaLoan & {
   book: PrismaBook;
   user: PrismaUserPublic;
 };
 
 export function serializeLoan(loan: LoanWithRelations) {
+  const status = loanStatus(loan);
+  const fine = status === "overdue" ? computeOverdueDays(loan.dueDate) : 0;
   return {
     id: loan.id,
     bookId: loan.bookId,
@@ -78,7 +86,8 @@ export function serializeLoan(loan: LoanWithRelations) {
           ).toISOString()
         : undefined,
     renewals: loan.renewals,
-    status: loanStatus(loan),
+    status,
+    fine,
     book: serializeBook(loan.book),
     user: serializeUser(loan.user),
   };

@@ -1,0 +1,8 @@
+node_modules
+.next
+.env
+*.log
+.git
+README.md
+DOCKER_MIGRATION.md
+biblioteca-com-postgresql.zip

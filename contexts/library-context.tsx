@@ -6,6 +6,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useMemo,
   type ReactNode,
 } from "react";
 import type { User, Book, Category, Slide, LoanWithDetails } from "@/lib/types";
@@ -56,6 +57,8 @@ interface LibraryContextType {
   slides: Slide[];
   loans: LoanWithDetails[];
   loading: boolean;
+  userFine: number;        // R$ acumulados em empréstimos atrasados do usuário atual
+  suspendedUntil: Date | null; // data de término da suspensão (nulo se não suspenso)
   login: (email: string, password: string) => Promise<AuthResult>;
   register: (name: string, email: string, password: string) => Promise<AuthResult>;
   logout: () => Promise<void>;
@@ -103,6 +106,32 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [loans, setLoans] = useState<LoanWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Multa acumulada: R$1 por dia de atraso em empréstimos ainda não devolvidos.
+  const userFine = useMemo(() => {
+    if (!currentUser) return 0;
+    return loans
+      .filter((l) => l.userId === currentUser.id && l.status === "overdue")
+      .reduce((sum, l) => sum + l.fine, 0);
+  }, [loans, currentUser]);
+
+  // Suspensão de 7 dias após devolver um livro atrasado.
+  const suspendedUntil = useMemo((): Date | null => {
+    if (!currentUser) return null;
+    let latest: Date | null = null;
+    for (const loan of loans) {
+      if (
+        loan.userId === currentUser.id &&
+        loan.status === "returned" &&
+        loan.returnDate &&
+        loan.returnDate > loan.dueDate
+      ) {
+        const until = new Date(loan.returnDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+        if (!latest || until > latest) latest = until;
+      }
+    }
+    return latest && latest > new Date() ? latest : null;
+  }, [loans, currentUser]);
 
   const loadBooks = useCallback(async () => {
     try {
@@ -245,6 +274,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   const createLoan = useCallback(
     async (bookId: string): Promise<LoanWithDetails | null> => {
+      if (suspendedUntil) return null;
       try {
         const data = await api("/api/loans", {
           method: "POST",
@@ -258,7 +288,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         return null;
       }
     },
-    [syncBookFromLoan]
+    [syncBookFromLoan, suspendedUntil]
   );
 
   const createLoanFor = useCallback(
@@ -508,12 +538,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       rating: number
     ): Promise<{ ok: boolean; error?: string }> => {
       try {
-        await api(`/api/books/${bookId}/rate`, {
+        const data = await api(`/api/books/${bookId}/rate`, {
           method: "POST",
           body: JSON.stringify({ rating }),
         });
         setBooks((prev) =>
-          prev.map((b) => (b.id === bookId ? { ...b, rating } : b))
+          prev.map((b) => (b.id === bookId ? (data.book as Book) : b))
         );
         return { ok: true };
       } catch (err) {
@@ -548,6 +578,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         slides,
         loans,
         loading,
+        userFine,
+        suspendedUntil,
         login,
         register,
         logout,

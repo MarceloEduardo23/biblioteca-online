@@ -24,7 +24,8 @@ model User {
   role      Role     @default(reader)
   createdAt DateTime @default(now())
 
-  loans Loan[]
+  loans   Loan[]
+  ratings Rating[]
 }
 
 model Book {
@@ -41,7 +42,8 @@ model Book {
   rating          Float    @default(0)
   createdAt       DateTime @default(now())
 
-  loans Loan[]
+  loans   Loan[]
+  ratings Rating[]
 }
 
 model Loan {
@@ -71,4 +73,17 @@ model Slide {
   description String
   imageUrl    String
   createdAt   DateTime @default(now())
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  bookId    String
+  userId    String
+  value     Int
+  createdAt DateTime @default(now())
+
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([bookId, userId])
 }

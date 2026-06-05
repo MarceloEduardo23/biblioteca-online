@@ -1,0 +1,17 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: biblioteca_db_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     biblioteca
+      POSTGRES_PASSWORD: senha_dev
+      POSTGRES_DB:       biblioteca
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_dev_data:

@@ -1,0 +1,35 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: biblioteca_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     biblioteca
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB:       biblioteca
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test:     ["CMD-SHELL", "pg_isready -U biblioteca"]
+      interval: 5s
+      timeout:  5s
+      retries:  10
+
+  app:
+    build: .
+    container_name: biblioteca_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://biblioteca:${DB_PASSWORD}@postgres:5432/biblioteca
+      AUTH_SECRET:  ${AUTH_SECRET}
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:

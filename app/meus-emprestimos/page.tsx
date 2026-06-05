@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { BookOpen, Calendar, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { BookOpen, Calendar, AlertCircle, CheckCircle, Clock, DollarSign, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { ReservationCountdown } from "@/components/reservation-countdown";
+import { StarRating } from "@/components/star-rating";
 import { useLibrary } from "@/contexts/library-context";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,8 @@ import {
 import Image from "next/image";
 
 export default function MeusEmprestimosPage() {
-  const { currentUser, getUserLoans, renewLoan, loading } = useLibrary();
+  const { currentUser, getUserLoans, renewLoan, rateBook, loading, userFine, suspendedUntil } = useLibrary();
+  const [userRatings, setUserRatings] = useState<Record<string, number>>({});
 
   const loans = useMemo(() => {
     if (!currentUser) return [];
@@ -31,11 +33,42 @@ export default function MeusEmprestimosPage() {
   const overdueLoans = loans.filter((l) => l.status === "overdue");
   const returnedLoans = loans.filter((l) => l.status === "returned");
 
+  // Carrega avaliações anteriores do usuário para os livros devolvidos
+  useEffect(() => {
+    if (returnedLoans.length === 0) return;
+    const bookIds = [...new Set(returnedLoans.map((l) => l.bookId))];
+    Promise.all(
+      bookIds.map((id) =>
+        fetch(`/api/books/${id}/rate`)
+          .then((r) => r.json())
+          .then((d) => ({ id, rating: d.rating as number | null }))
+          .catch(() => ({ id, rating: null }))
+      )
+    ).then((results) => {
+      const map: Record<string, number> = {};
+      for (const { id, rating } of results) {
+        if (rating !== null) map[id] = rating;
+      }
+      setUserRatings(map);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnedLoans.length]);
+
   const handleRenew = async (loanId: string) => {
     const res = await renewLoan(loanId);
     toast[res.ok ? "success" : "error"](
       res.ok ? "Empréstimo renovado!" : res.error || "Não foi possível renovar."
     );
+  };
+
+  const handleRate = async (bookId: string, value: number) => {
+    const res = await rateBook(bookId, value);
+    if (res.ok) {
+      setUserRatings((prev) => ({ ...prev, [bookId]: value }));
+      toast.success("Avaliação registrada!");
+    } else {
+      toast.error(res.error || "Não foi possível avaliar.");
+    }
   };
 
   if (loading) {
@@ -79,8 +112,40 @@ export default function MeusEmprestimosPage() {
             </p>
           </div>
 
+          {/* Banner de suspensão */}
+          {suspendedUntil && (
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-orange-500/10 border border-orange-500/30">
+              <Ban className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-orange-500">Conta suspensa</p>
+                <p className="text-sm text-muted-foreground">
+                  Você devolveu um livro com atraso. Novos empréstimos ficam bloqueados até{" "}
+                  <span className="font-medium text-foreground">
+                    {suspendedUntil.toLocaleDateString("pt-BR")}
+                  </span>
+                  .
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Banner de multa pendente */}
+          {userFine > 0 && (
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/30">
+              <DollarSign className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-red-500">
+                  Multa acumulada: R${userFine},00
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  R$1,00 por dia de atraso. Regularize na biblioteca para liberar sua conta.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
@@ -116,6 +181,19 @@ export default function MeusEmprestimosPage() {
                   <div>
                     <p className="text-2xl font-bold text-foreground">{returnedLoans.length}</p>
                     <p className="text-xs text-muted-foreground">Devolvidos</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="bg-orange-500/20 p-3 rounded-full">
+                    <DollarSign className="h-5 w-5 text-orange-500" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">R${userFine}</p>
+                    <p className="text-xs text-muted-foreground">Multa</p>
                   </div>
                 </div>
               </CardContent>
@@ -200,9 +278,15 @@ export default function MeusEmprestimosPage() {
                         </span>
                       </div>
                       {loan.status === "overdue" && (
-                        <span className="inline-block mt-2 text-xs px-2 py-1 rounded-full bg-red-500/20 text-red-500">
-                          Atrasado
-                        </span>
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <span className="inline-block text-xs px-2 py-1 rounded-full bg-red-500/20 text-red-500">
+                            Atrasado
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-orange-500/20 text-orange-500">
+                            <DollarSign className="h-3 w-3" />
+                            Multa: R${loan.fine},00
+                          </span>
+                        </div>
                       )}
                     </div>
                     <div className="flex flex-col gap-2">
@@ -268,7 +352,7 @@ export default function MeusEmprestimosPage() {
                 {returnedLoans.map((loan) => (
                   <div
                     key={loan.id}
-                    className="flex items-center gap-4 p-4 rounded-lg bg-secondary/30 opacity-75"
+                    className="flex items-center gap-4 p-4 rounded-lg bg-secondary/30"
                   >
                     <div className="relative w-12 h-18 flex-shrink-0 rounded overflow-hidden">
                       <Image
@@ -286,6 +370,21 @@ export default function MeusEmprestimosPage() {
                       <p className="text-sm text-muted-foreground">
                         {loan.book.author}
                       </p>
+                      <div className="mt-2">
+                        <StarRating
+                          value={userRatings[loan.bookId] ?? 0}
+                          onChange={(v) => handleRate(loan.bookId, v)}
+                        />
+                        {userRatings[loan.bookId] ? (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Sua avaliação: {userRatings[loan.bookId]}/5
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Avalie este livro
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="text-right">
                       <span className="inline-block text-xs px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-500">

@@ -22,7 +22,7 @@ interface BookModalProps {
 }
 
 export function BookModal({ book, open, onClose }: BookModalProps) {
-  const { currentUser, createLoan, loans } = useLibrary();
+  const { currentUser, createLoan, loans, suspendedUntil } = useLibrary();
   const [loanCreated, setLoanCreated] = useState<LoanWithDetails | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -47,8 +47,9 @@ export function BookModal({ book, open, onClose }: BookModalProps) {
   );
   const alreadyHas = myActiveLoans.some((l) => l.bookId === book.id);
   const reachedLimit = myActiveLoans.length >= 3;
+  const isSuspended = !!suspendedUntil;
   const canBorrow =
-    !!currentUser && book.availableCopies > 0 && !alreadyHas && !reachedLimit;
+    !!currentUser && book.availableCopies > 0 && !alreadyHas && !reachedLimit && !isSuspended;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -128,6 +129,8 @@ export function BookModal({ book, open, onClose }: BookModalProps) {
                       ? "Processando..."
                       : alreadyHas
                       ? "Você já está com este livro"
+                      : isSuspended
+                      ? `Suspenso até ${suspendedUntil!.toLocaleDateString("pt-BR")}`
                       : reachedLimit
                       ? "Limite de 3 livros atingido"
                       : book.availableCopies > 0

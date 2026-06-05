@@ -46,6 +46,7 @@ export interface Loan {
   reservationExpiresAt?: Date;
   renewals: number;
   status: "pending" | "active" | "returned" | "overdue";
+  fine: number; // R$ acumulados por dias de atraso (R$1/dia)
 }
 
 export interface LoanWithDetails extends Loan {
