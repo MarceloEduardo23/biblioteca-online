@@ -1,4 +1,4 @@
-# BiblioTech — Biblioteca Digital
+# BiblioFlix — Biblioteca Digital
 
 Sistema de biblioteca com catálogo de livros, empréstimos com QR Code e painel
 administrativo. Agora com **banco de dados PostgreSQL** de verdade, **login com

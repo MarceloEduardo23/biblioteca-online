@@ -9,7 +9,7 @@ const _geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 const _geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
-  title: "BiblioTech - Biblioteca Digital",
+  title: "BiblioFlix - Biblioteca Digital",
   description: "Sistema de biblioteca digital com empréstimos via QR Code",
 };
 

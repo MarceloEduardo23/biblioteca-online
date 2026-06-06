@@ -15,6 +15,7 @@ import {
   Users,
   BookCopy,
   ScanLine,
+  BarChart3,
   ChevronLeft,
 } from "lucide-react";
 import { useLibrary } from "@/contexts/library-context";
@@ -74,7 +75,7 @@ export function Header({ onSearch, searchQuery }: HeaderProps) {
             <Link href="/" className="flex items-center gap-2">
               <BookOpen className="h-8 w-8 text-primary" />
               <span className="text-xl font-bold text-foreground hidden sm:block">
-                BiblioTech
+                BiblioFlix
               </span>
             </Link>
           </div>
@@ -115,6 +116,14 @@ export function Header({ onSearch, searchQuery }: HeaderProps) {
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Escanear
+              </Link>
+            )}
+            {isStaff && (
+              <Link
+                href="/admin/relatorios"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Relatórios
               </Link>
             )}
           </nav>
@@ -178,6 +187,12 @@ export function Header({ onSearch, searchQuery }: HeaderProps) {
                         <Link href="/admin/escanear" className="cursor-pointer">
                           <ScanLine className="mr-2 h-4 w-4" />
                           Escanear
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/relatorios" className="cursor-pointer">
+                          <BarChart3 className="mr-2 h-4 w-4" />
+                          Relatórios
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
